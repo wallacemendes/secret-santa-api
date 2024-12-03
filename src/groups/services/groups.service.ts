@@ -102,7 +102,6 @@ export class GroupsService {
       throw new BadRequestException('The provided ID is not valid.');
 
     const objectId = new ObjectId(id);
-    console.log(objectId);
     const group = await this.groupRepository.findOneBy({ _id: objectId });
 
     if (!group)
