@@ -9,7 +9,7 @@ import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Group } from '../entities/group.entity';
-import { Repository } from 'typeorm';
+import { MongoRepository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { CreateGroupReponseDto } from '../dto/create-group-response.dto';
@@ -22,7 +22,7 @@ import { ReadGroupInfoDto } from '../dto/read-group-info.dto';
 export class GroupsService {
   constructor(
     @InjectRepository(Group)
-    private readonly groupRepository: Repository<Group>,
+    private readonly groupRepository: MongoRepository<Group>,
   ) {}
 
   private generateRandomKey(length: number): string {
@@ -134,7 +134,49 @@ export class GroupsService {
     return responseBody;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} group`;
+  async removeParticipant(id: string, phone: string) {
+    const group = await this.findgroupById(id);
+    const participants = group.participants;
+    if (!participants || participants.length === 0) {
+      throw new NotFoundException('The group does not have any participant.');
+    }
+    const participantExists = group.participants.some(
+      (p) => p.phoneNumber === phone,
+    );
+
+    if (!participantExists)
+      throw new NotFoundException(
+        'Participant with the provided phoneNumber does not exists.',
+      );
+
+    const remainingParticipants = group.participants.filter(
+      (p) => p.phoneNumber !== phone,
+    );
+
+    await this.groupRepository.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { participants: remainingParticipants } },
+    );
+
+    return {
+      status: 'Success',
+      message: `Participant with phoneNumber: ${phone} removed.`,
+    };
+  }
+
+  async deleteGroup(id: string) {
+    try {
+      const group = await this.findgroupById(id);
+      await this.groupRepository.remove(group);
+      return {
+        status: 'Success',
+        message: `The group with ID: ${id} was deleted.`,
+      };
+    } catch (error) {
+      if (error.message.includes('connection')) {
+        throw new InternalServerErrorException('Database connection error.');
+      }
+      throw error;
+    }
   }
 }
