@@ -28,6 +28,9 @@ export class GroupsService {
   private generateRandomKey(length: number): string {
     return randomBytes(length).toString('hex');
   }
+  private getRandomIndex(arrayLength: number): number {
+    return Math.floor(Math.random() * arrayLength);
+  }
 
   async create(createGroupDto: CreateGroupDto): Promise<CreateGroupReponseDto> {
     try {
@@ -178,5 +181,49 @@ export class GroupsService {
       }
       throw error;
     }
+  }
+
+  async draw(id: string) {
+    const group = await this.findgroupById(id);
+    if (!group.participants && group.participants.length < 2) {
+      throw new Error('The group has not enough participants to draw.');
+    }
+
+    if (!group.draws) Object.assign(group, { draws: {} });
+
+    type ParticipantNoKey = Omit<Participant, 'key'>;
+    const participants: ParticipantNoKey[] = group.participants.map((p) => {
+      return {
+        name: p.name,
+        phoneNumber: p.phoneNumber,
+      };
+    });
+    const randomIndex = this.getRandomIndex(participants.length);
+    const firstSelected = participants[randomIndex];
+    participants.splice(randomIndex, 1);
+
+    const assignParticipant = (
+      giver: ParticipantNoKey,
+      remainingParticipants: ParticipantNoKey[],
+    ) => {
+      const receiverIndex = this.getRandomIndex(remainingParticipants.length);
+      const receiver = remainingParticipants[receiverIndex];
+
+      group.draws[giver.name] = {
+        ...receiver,
+      };
+      remainingParticipants.splice(receiverIndex, 1);
+
+      if (remainingParticipants.length === 0) {
+        group.draws[receiver.name] = {
+          ...firstSelected,
+        };
+        return;
+      }
+      assignParticipant(receiver, remainingParticipants);
+    };
+
+    assignParticipant(firstSelected, participants);
+    return group.draws;
   }
 }

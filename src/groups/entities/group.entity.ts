@@ -18,4 +18,7 @@ export class Group {
 
   @Column(() => Participant)
   participants?: Participant[];
+
+  @Column({ default: {} })
+  draws: { [key: string]: Omit<Participant, 'key'> };
 }

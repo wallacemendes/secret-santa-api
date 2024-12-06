@@ -44,7 +44,10 @@ export class AdminController {
   }
 
   @Put('draw')
-  draw(@Req() request) {}
+  draw(@Req() request) {
+    const id: string = request.group._id;
+    return this.groupsService.draw(id);
+  }
 
   @Patch('edit')
   update(@Req() request, @Body() updateGroupDto: UpdateGroupDto) {
