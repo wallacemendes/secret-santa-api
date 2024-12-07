@@ -17,6 +17,7 @@ import { GroupsService } from '../services/groups.service';
 import { ParticipantDto } from '../dto/participant.dto';
 import { AdminGuard } from '../guards/admin.guard';
 import { UpdateGroupDto } from '../dto/update-group.dto';
+import { ResponseDto } from '../dto/status-response.dto';
 
 @UseGuards(AdminGuard)
 @Controller('group/:id/admin')
@@ -44,9 +45,32 @@ export class AdminController {
   }
 
   @Put('draw')
-  draw(@Req() request) {
-    const id: string = request.group._id;
-    return this.groupsService.draw(id);
+  async draw(
+    @Req() request,
+    @Query('forceDraw') forceDraw: boolean,
+  ): Promise<ResponseDto<object>> {
+    try {
+      const id: string = request.group._id;
+      const group = await this.groupsService.findgroupById(id);
+      if (group.draws && !forceDraw) {
+        return {
+          success: true,
+          data: group.draws,
+        };
+      }
+      const draws = await this.groupsService.draw(id);
+      const responseBody: ResponseDto<object> = {
+        success: true,
+        data: draws,
+      };
+
+      return responseBody;
+    } catch (error) {
+      return {
+        success: false,
+        errors: error.message,
+      };
+    }
   }
 
   @Patch('edit')

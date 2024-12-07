@@ -183,7 +183,7 @@ export class GroupsService {
     }
   }
 
-  async draw(id: string) {
+  async draw(id: string): Promise<object> {
     const group = await this.findgroupById(id);
     if (!group.participants && group.participants.length < 2) {
       throw new Error('The group has not enough participants to draw.');
@@ -198,6 +198,40 @@ export class GroupsService {
         phoneNumber: p.phoneNumber,
       };
     });
+
+    for (let i = participants.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [participants[i], participants[j]] = [participants[j], participants[i]];
+    }
+
+    participants.forEach((participant, index) => {
+      if (index === participants.length - 1) {
+        group.draws[participant.phoneNumber] = {
+          ...participants[0],
+        };
+        return;
+      }
+      group.draws[participant.phoneNumber] = {
+        ...participants[index + 1],
+      };
+    });
+
+    await this.groupRepository.save(group);
+
+    return group.draws;
+  }
+}
+
+/*  
+    Outra solução para o algoritmo de gerar os draws: Havia feito com Recursão. Descobri depois que recursão é menos eficiente
+    pois ocorre um overhead adicional no gerenciamento da pilha de chamadas e consomem mais memória.
+    A depender do ambiente de execução se a recursão atingir uma profundidade grande, ocorre o estouro da pilha.
+    Com laços de iterações é possível iterar sobre milhÕes de elementos sem essa preocupação.
+
+    A solução utilizou o algoritmo de embaralhamento mais eficiente comumente utilizado chamado Fisher-Yates Suffle,
+    tbm conhecido como Knuth Shuffle.
+
+
     const randomIndex = this.getRandomIndex(participants.length);
     const firstSelected = participants[randomIndex];
     participants.splice(randomIndex, 1);
@@ -209,13 +243,13 @@ export class GroupsService {
       const receiverIndex = this.getRandomIndex(remainingParticipants.length);
       const receiver = remainingParticipants[receiverIndex];
 
-      group.draws[giver.name] = {
+      group.draws[giver.phoneNumber] = {
         ...receiver,
       };
       remainingParticipants.splice(receiverIndex, 1);
 
       if (remainingParticipants.length === 0) {
-        group.draws[receiver.name] = {
+        group.draws[receiver.phoneNumber] = {
           ...firstSelected,
         };
         return;
@@ -223,7 +257,5 @@ export class GroupsService {
       assignParticipant(receiver, remainingParticipants);
     };
 
-    assignParticipant(firstSelected, participants);
-    return group.draws;
-  }
-}
+    assignParticipant(firstSelected, participants); 
+*/
